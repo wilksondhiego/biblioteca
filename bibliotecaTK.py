@@ -1086,4 +1086,53 @@ def tela_dados_exemplo():
 
     Button(frame_conteudo, text="Criar Dados de Exemplo", command=criar, bg="#4CAF50", fg="white").pack(pady=10)
 
+def encerrar():
+    if messagebox.askyesno("Sair", "Deseja encerrar o sistema?\nUm relatório final será salvo automaticamente."):
+        Path(PASTA_RELATORIOS).mkdir(exist_ok=True)
+        nome_arquivo = "relatorio_final_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".txt"
+        caminho = Path(PASTA_RELATORIOS) / nome_arquivo
+
+        arquivo = open(caminho, "w", encoding="utf-8")
+        arquivo.write(montar_relatorio())
+        arquivo.close()
+
+        messagebox.showinfo("Tchau", "Relatório salvo em:\n" + str(caminho) + "\n\nAté logo!")
+        janela.destroy()
+
+
+Label(frame_menu, text="MENU", font=("Arial", 11, "bold"), bg="#eeeeee").pack(pady=10)
+
+Button(frame_menu, text="1. Cadastrar usuário",   command=tela_cadastrar_usuario,  width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="2. Listar usuários",     command=tela_listar_usuarios,    width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="3. Cadastrar livro",     command=tela_cadastrar_livro,    width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="4. Listar livros",       command=tela_listar_livros,      width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="5. Buscar livro",        command=tela_buscar_livro,       width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="6. Realizar empréstimo", command=tela_emprestar,          width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="7. Listar empréstimos",  command=tela_listar_emprestimos, width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="8. Devolver livro",      command=tela_devolver,           width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="9. Renovar empréstimo",  command=tela_renovar,            width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="10. Consultar multas",   command=tela_consultar_multas,   width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="11. Pagar multa",        command=tela_pagar_multa,        width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="12. Remover livro",      command=tela_remover_livro,      width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="13. Remover usuário",    command=tela_remover_usuario,    width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="14. Ver relatório",      command=tela_relatorio,          width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="15. Salvar relatório",   command=tela_salvar_relatorio,   width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="16. Salvar JSON",        command=tela_salvar_json,        width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="17. Carregar JSON",      command=tela_carregar_json,      width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="18. Estatísticas",       command=tela_estatisticas,       width=22, anchor=W, padx=5).pack(pady=1)
+Button(frame_menu, text="19. Dados de exemplo",   command=tela_dados_exemplo,      width=22, anchor=W, padx=5).pack(pady=1)
+
+Button(frame_menu, text="0. Encerrar", command=encerrar, bg="#f44336", fg="white", width=22, anchor=W, padx=5).pack(pady=(10, 2))
+
+Label(frame_conteudo, text="Bem-vindo ao Sistema de Biblioteca",
+      font=("Arial", 13, "bold"), bg="white").pack(pady=20)
+
+Label(frame_conteudo,
+      text="Limite de empréstimos por usuário: " + str(LIMITE_EMPRESTIMOS) + "\n"
+           "Prazo de empréstimo: " + str(PRAZO_DIAS) + " dias\n"
+           "Multa por dia de atraso: " + formatar_moeda(MULTA_POR_DIA) + "\n\n"
+           "Escolha uma opção no menu ao lado.",
+      bg="white", font=("Arial", 10), justify=LEFT).pack(padx=20)
+
+janela.mainloop()
 
