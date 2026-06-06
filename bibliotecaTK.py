@@ -213,3 +213,169 @@ def tela_listar_usuarios():
             texto.insert(END, "Multa em aberto:    " + formatar_moeda(u["multa_total"]) + "\n")
 
     texto.config(state=DISABLED)
+def tela_cadastrar_livro():
+    limpar()
+    Label(frame_conteudo, text="Cadastrar Livro", font=("Arial", 13, "bold"), bg="white").grid(row=0, column=0, columnspan=2, pady=10)
+
+    Label(frame_conteudo, text="Título *", bg="white").grid(row=1, column=0, sticky=W, padx=10)
+    e_titulo = Entry(frame_conteudo, width=35)
+    e_titulo.grid(row=1, column=1, padx=10, pady=2)
+
+    Label(frame_conteudo, text="Autor *", bg="white").grid(row=2, column=0, sticky=W, padx=10)
+    e_autor = Entry(frame_conteudo, width=35)
+    e_autor.grid(row=2, column=1, padx=10, pady=2)
+
+    Label(frame_conteudo, text="Ano de publicação", bg="white").grid(row=3, column=0, sticky=W, padx=10)
+    e_ano = Entry(frame_conteudo, width=35)
+    e_ano.grid(row=3, column=1, padx=10, pady=2)
+
+    Label(frame_conteudo, text="ISBN / Código", bg="white").grid(row=4, column=0, sticky=W, padx=10)
+    e_isbn = Entry(frame_conteudo, width=35)
+    e_isbn.grid(row=4, column=1, padx=10, pady=2)
+
+    Label(frame_conteudo, text="Categoria", bg="white").grid(row=5, column=0, sticky=W, padx=10)
+    e_categoria = Entry(frame_conteudo, width=35)
+    e_categoria.grid(row=5, column=1, padx=10, pady=2)
+
+    Label(frame_conteudo, text="Editora", bg="white").grid(row=6, column=0, sticky=W, padx=10)
+    e_editora = Entry(frame_conteudo, width=35)
+    e_editora.grid(row=6, column=1, padx=10, pady=2)
+
+    Label(frame_conteudo, text="Quantidade", bg="white").grid(row=7, column=0, sticky=W, padx=10)
+    e_qtd = Entry(frame_conteudo, width=35)
+    e_qtd.grid(row=7, column=1, padx=10, pady=2)
+
+    Label(frame_conteudo, text="Prateleira", bg="white").grid(row=8, column=0, sticky=W, padx=10)
+    e_prat = Entry(frame_conteudo, width=35)
+    e_prat.grid(row=8, column=1, padx=10, pady=2)
+
+    Label(frame_conteudo, text="Palavras-chave", bg="white").grid(row=9, column=0, sticky=W, padx=10)
+    e_palavras = Entry(frame_conteudo, width=35)
+    e_palavras.grid(row=9, column=1, padx=10, pady=2)
+
+    Label(frame_conteudo, text="Observações", bg="white").grid(row=10, column=0, sticky=W, padx=10)
+    e_obs = Entry(frame_conteudo, width=35)
+    e_obs.grid(row=10, column=1, padx=10, pady=2)
+
+    def salvar():
+        titulo = e_titulo.get().strip()
+        autor = e_autor.get().strip()
+
+        if titulo == "" or autor == "":
+            messagebox.showerror("Erro", "Título e autor são obrigatórios.")
+            return
+
+        try:
+            ano = int(e_ano.get().strip())
+        except:
+            ano = 0
+
+        try:
+            qtd = int(e_qtd.get().strip())
+            if qtd < 1:
+                qtd = 1
+        except:
+            qtd = 1
+
+        novo_livro = {
+            "id": gerar_id("L"),
+            "titulo": titulo,
+            "autor": autor,
+            "ano": ano,
+            "isbn": e_isbn.get().strip(),
+            "categoria": e_categoria.get().strip(),
+            "editora": e_editora.get().strip(),
+            "quantidade_total": qtd,
+            "quantidade_disponivel": qtd,
+            "prateleira": e_prat.get().strip(),
+            "palavras_chave": e_palavras.get().strip(),
+            "observacoes": e_obs.get().strip(),
+            "ativo": True
+        }
+        livros.append(novo_livro)
+        registrar_historico("Livro cadastrado: " + titulo)
+        messagebox.showinfo("OK", "Livro cadastrado!\nID: " + novo_livro["id"])
+
+        e_titulo.delete(0, END)
+        e_autor.delete(0, END)
+        e_ano.delete(0, END)
+        e_isbn.delete(0, END)
+        e_categoria.delete(0, END)
+        e_editora.delete(0, END)
+        e_qtd.delete(0, END)
+        e_prat.delete(0, END)
+        e_palavras.delete(0, END)
+        e_obs.delete(0, END)
+
+    Button(frame_conteudo, text="Salvar", command=salvar, bg="#4CAF50", fg="white", width=15).grid(row=11, column=1, pady=10, sticky=E, padx=10)
+
+
+def tela_listar_livros():
+    limpar()
+    Label(frame_conteudo, text="Livros Cadastrados", font=("Arial", 13, "bold"), bg="white").pack(pady=10)
+
+    texto = Text(frame_conteudo, width=80, height=22, font=("Courier", 9))
+    scroll = Scrollbar(frame_conteudo, command=texto.yview)
+    texto.configure(yscrollcommand=scroll.set)
+    scroll.pack(side=RIGHT, fill=Y)
+    texto.pack(padx=10, fill=BOTH, expand=True)
+
+    if len(livros) == 0:
+        texto.insert(END, "Nenhum livro cadastrado.")
+    else:
+        for l in livros:
+            if l["ativo"] == True:
+                status = "ativo"
+            else:
+                status = "removido"
+            texto.insert(END, "-" * 60 + "\n")
+            texto.insert(END, "ID:         " + l["id"] + "\n")
+            texto.insert(END, "Título:     " + l["titulo"] + "\n")
+            texto.insert(END, "Autor:      " + l["autor"] + "   Ano: " + str(l["ano"]) + "\n")
+            texto.insert(END, "Categoria:  " + l["categoria"] + "   Editora: " + l["editora"] + "\n")
+            texto.insert(END, "Disponível: " + str(l["quantidade_disponivel"]) + "/" + str(l["quantidade_total"]) + "   Prateleira: " + l["prateleira"] + "\n")
+            texto.insert(END, "Status:     " + status + "\n")
+
+    texto.config(state=DISABLED)
+
+
+def tela_buscar_livro():
+    limpar()
+    Label(frame_conteudo, text="Buscar Livro", font=("Arial", 13, "bold"), bg="white").pack(pady=10)
+
+    frame_busca = Frame(frame_conteudo, bg="white")
+    frame_busca.pack()
+    Label(frame_busca, text="Termo:", bg="white").pack(side=LEFT)
+    e_termo = Entry(frame_busca, width=30)
+    e_termo.pack(side=LEFT, padx=5)
+
+    texto = Text(frame_conteudo, width=80, height=18, font=("Courier", 9))
+    scroll = Scrollbar(frame_conteudo, command=texto.yview)
+    texto.configure(yscrollcommand=scroll.set)
+    scroll.pack(side=RIGHT, fill=Y)
+    texto.pack(padx=10, pady=5, fill=BOTH, expand=True)
+
+    def buscar():
+        termo = e_termo.get().strip().lower()
+        texto.config(state=NORMAL)
+        texto.delete("1.0", END)
+
+        encontrados = []
+        for l in livros:
+            campos = l["titulo"] + " " + l["autor"] + " " + l["categoria"] + " " + l["palavras_chave"]
+            if termo in campos.lower() and l["ativo"] == True:
+                encontrados.append(l)
+
+        if len(encontrados) == 0:
+            texto.insert(END, "Nenhum livro encontrado.")
+        else:
+            texto.insert(END, str(len(encontrados)) + " resultado(s):\n\n")
+            for l in encontrados:
+                linha = "ID: " + l["id"] + "  |  " + l["titulo"] + " - " + l["autor"] + "  |  Disponível: " + str(l["quantidade_disponivel"]) + "\n"
+                texto.insert(END, linha)
+
+        texto.config(state=DISABLED)
+
+    Button(frame_busca, text="Buscar", command=buscar, bg="#2196F3", fg="white").pack(side=LEFT, padx=5)
+    e_termo.bind("<Return>", lambda event: buscar())
+
