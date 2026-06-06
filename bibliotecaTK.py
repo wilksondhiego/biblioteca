@@ -379,3 +379,226 @@ def tela_buscar_livro():
     Button(frame_busca, text="Buscar", command=buscar, bg="#2196F3", fg="white").pack(side=LEFT, padx=5)
     e_termo.bind("<Return>", lambda event: buscar())
 
+
+def tela_emprestar():
+    limpar()
+    Label(frame_conteudo, text="Realizar Empréstimo", font=("Arial", 13, "bold"), bg="white").grid(row=0, column=0, columnspan=2, pady=10)
+
+    Label(frame_conteudo, text="ID do Usuário *", bg="white").grid(row=1, column=0, sticky=W, padx=10)
+    e_uid = Entry(frame_conteudo, width=35)
+    e_uid.grid(row=1, column=1, padx=10, pady=3)
+
+    Label(frame_conteudo, text="ID do Livro *", bg="white").grid(row=2, column=0, sticky=W, padx=10)
+    e_lid = Entry(frame_conteudo, width=35)
+    e_lid.grid(row=2, column=1, padx=10, pady=3)
+
+    Label(frame_conteudo, text="Data do empréstimo (dd/mm/aaaa, vazio=hoje)", bg="white").grid(row=3, column=0, sticky=W, padx=10)
+    e_data = Entry(frame_conteudo, width=35)
+    e_data.grid(row=3, column=1, padx=10, pady=3)
+
+    Label(frame_conteudo, text="Observação", bg="white").grid(row=4, column=0, sticky=W, padx=10)
+    e_obs = Entry(frame_conteudo, width=35)
+    e_obs.grid(row=4, column=1, padx=10, pady=3)
+
+
+    texto = Text(frame_conteudo, width=75, height=10, font=("Courier", 8))
+    scroll = Scrollbar(frame_conteudo, command=texto.yview)
+    texto.configure(yscrollcommand=scroll.set)
+    scroll.grid(row=6, column=2, sticky=NS)
+    texto.grid(row=6, column=0, columnspan=2, padx=10, pady=5)
+    texto.insert(END, "Usuários ativos:\n")
+    for u in usuarios:
+        if u["ativo"] == True:
+            texto.insert(END, "  " + u["id"] + "  " + u["nome"] + "  multa:" + formatar_moeda(u["multa_total"]) + "\n")
+    texto.insert(END, "\nLivros disponíveis:\n")
+    for l in livros:
+        if l["ativo"] == True and l["quantidade_disponivel"] > 0:
+            texto.insert(END, "  " + l["id"] + "  " + l["titulo"] + "  disp:" + str(l["quantidade_disponivel"]) + "\n")
+    texto.config(state=DISABLED)
+
+    def salvar():
+        usuario = encontrar_usuario(e_uid.get().strip())
+        livro = encontrar_livro(e_lid.get().strip())
+
+        if usuario == None:
+            messagebox.showerror("Erro", "Usuário não encontrado.")
+            return
+        if usuario["ativo"] == False:
+            messagebox.showerror("Erro", "Usuário inativo.")
+            return
+        if usuario["multa_total"] > 0:
+            messagebox.showerror("Erro", "Usuário tem multa em aberto.")
+            return
+        if livro == None:
+            messagebox.showerror("Erro", "Livro não encontrado.")
+            return
+        if livro["ativo"] == False:
+            messagebox.showerror("Erro", "Livro inativo.")
+            return
+        if livro["quantidade_disponivel"] <= 0:
+            messagebox.showerror("Erro", "Livro indisponível.")
+            return
+        if contar_ativos(usuario["id"]) >= LIMITE_EMPRESTIMOS:
+            messagebox.showerror("Erro", "Limite de " + str(LIMITE_EMPRESTIMOS) + " empréstimos atingido.")
+            return
+
+        data_emp = converter_data(e_data.get())
+        data_prev = data_emp + timedelta(days=PRAZO_DIAS)
+
+        novo_emp = {
+            "id": gerar_id("E"),
+            "id_usuario": usuario["id"],
+            "nome_usuario": usuario["nome"],
+            "id_livro": livro["id"],
+            "titulo_livro": livro["titulo"],
+            "data_emprestimo": data_emp.isoformat(),
+            "data_prevista": data_prev.isoformat(),
+            "data_devolucao": "",
+            "status": "ativo",
+            "situacao": "dentro do prazo",
+            "dias_atraso": 0,
+            "multa": 0.0,
+            "renovacoes": 0,
+            "observacao": e_obs.get().strip()
+        }
+        emprestimos.append(novo_emp)
+        livro["quantidade_disponivel"] = livro["quantidade_disponivel"] - 1
+        registrar_historico("Empréstimo: " + livro["titulo"] + " para " + usuario["nome"])
+        messagebox.showinfo("OK", "Empréstimo realizado!\nID: " + novo_emp["id"] + "\nDevolução prevista: " + data_prev.strftime("%d/%m/%Y"))
+
+        e_uid.delete(0, END)
+        e_lid.delete(0, END)
+        e_data.delete(0, END)
+        e_obs.delete(0, END)
+
+    Button(frame_conteudo, text="Confirmar Empréstimo", command=salvar, bg="#4CAF50", fg="white").grid(row=5, column=1, pady=8, sticky=E, padx=10)
+
+
+def tela_listar_emprestimos():
+    atualizar_situacoes()
+    limpar()
+    Label(frame_conteudo, text="Empréstimos Registrados", font=("Arial", 13, "bold"), bg="white").pack(pady=10)
+
+    texto = Text(frame_conteudo, width=80, height=22, font=("Courier", 9))
+    scroll = Scrollbar(frame_conteudo, command=texto.yview)
+    texto.configure(yscrollcommand=scroll.set)
+    scroll.pack(side=RIGHT, fill=Y)
+    texto.pack(padx=10, fill=BOTH, expand=True)
+
+    if len(emprestimos) == 0:
+        texto.insert(END, "Nenhum empréstimo registrado.")
+    else:
+        for e in emprestimos:
+            data_prev = datetime.strptime(e["data_prevista"], "%Y-%m-%d").date().strftime("%d/%m/%Y")
+            texto.insert(END, "-" * 60 + "\n")
+            texto.insert(END, "ID:        " + e["id"] + "\n")
+            texto.insert(END, "Usuário:   " + e["nome_usuario"] + "\n")
+            texto.insert(END, "Livro:     " + e["titulo_livro"] + "\n")
+            texto.insert(END, "Status:    " + e["status"] + "   Situação: " + e["situacao"] + "\n")
+            texto.insert(END, "Prev. dev: " + data_prev + "   Renovações: " + str(e["renovacoes"]) + "\n")
+            texto.insert(END, "Multa:     " + formatar_moeda(e["multa"]) + "\n")
+
+    texto.config(state=DISABLED)
+
+
+def tela_devolver():
+    limpar()
+    Label(frame_conteudo, text="Devolver Livro", font=("Arial", 13, "bold"), bg="white").grid(row=0, column=0, columnspan=2, pady=10)
+
+    Label(frame_conteudo, text="ID do Empréstimo *", bg="white").grid(row=1, column=0, sticky=W, padx=10)
+    e_id = Entry(frame_conteudo, width=35)
+    e_id.grid(row=1, column=1, padx=10, pady=3)
+
+    Label(frame_conteudo, text="Data de devolução (dd/mm/aaaa, vazio=hoje)", bg="white").grid(row=2, column=0, sticky=W, padx=10)
+    e_data = Entry(frame_conteudo, width=35)
+    e_data.grid(row=2, column=1, padx=10, pady=3)
+
+    Label(frame_conteudo, text="Observação", bg="white").grid(row=3, column=0, sticky=W, padx=10)
+    e_obs = Entry(frame_conteudo, width=35)
+    e_obs.grid(row=3, column=1, padx=10, pady=3)
+
+    def devolver():
+        emp = encontrar_emprestimo(e_id.get().strip())
+
+        if emp == None:
+            messagebox.showerror("Erro", "Empréstimo não encontrado.")
+            return
+        if emp["status"] != "ativo":
+            messagebox.showerror("Erro", "Esse empréstimo já foi devolvido.")
+            return
+        if not messagebox.askyesno("Confirmar", "Confirmar devolução?"):
+            return
+
+        livro = encontrar_livro(emp["id_livro"])
+        usuario = encontrar_usuario(emp["id_usuario"])
+        data_dev = converter_data(e_data.get())
+        data_prev = datetime.strptime(emp["data_prevista"], "%Y-%m-%d").date()
+        dias, multa = calcular_multa(data_dev, data_prev)
+
+        emp["data_devolucao"] = data_dev.isoformat()
+        emp["status"] = "devolvido"
+        emp["dias_atraso"] = dias
+        emp["multa"] = multa
+
+        if dias > 0:
+            emp["situacao"] = "devolvido com atraso"
+        else:
+            emp["situacao"] = "devolvido no prazo"
+
+        emp["observacao"] = emp["observacao"] + " | " + e_obs.get().strip()
+
+        if livro != None:
+            livro["quantidade_disponivel"] = livro["quantidade_disponivel"] + 1
+        if usuario != None:
+            usuario["multa_total"] = usuario["multa_total"] + multa
+
+        registrar_historico("Devolução: " + emp["titulo_livro"] + " por " + emp["nome_usuario"])
+
+        msg = "Devolução registrada!"
+        if multa > 0:
+            msg = msg + "\nAtraso: " + str(dias) + " dia(s) — Multa: " + formatar_moeda(multa)
+        else:
+            msg = msg + "\nDentro do prazo, sem multa."
+
+        messagebox.showinfo("OK", msg)
+        e_id.delete(0, END)
+        e_data.delete(0, END)
+        e_obs.delete(0, END)
+
+    Button(frame_conteudo, text="Registrar Devolução", command=devolver, bg="#4CAF50", fg="white").grid(row=4, column=1, pady=10, sticky=E, padx=10)
+
+
+def tela_renovar():
+    limpar()
+    Label(frame_conteudo, text="Renovar Empréstimo", font=("Arial", 13, "bold"), bg="white").grid(row=0, column=0, columnspan=2, pady=10)
+
+    Label(frame_conteudo, text="ID do Empréstimo *", bg="white").grid(row=1, column=0, sticky=W, padx=10)
+    e_id = Entry(frame_conteudo, width=35)
+    e_id.grid(row=1, column=1, padx=10, pady=3)
+
+    def renovar():
+        emp = encontrar_emprestimo(e_id.get().strip())
+
+        if emp == None:
+            messagebox.showerror("Erro", "Empréstimo não encontrado.")
+            return
+        if emp["status"] != "ativo":
+            messagebox.showerror("Erro", "Não é possível renovar um empréstimo devolvido.")
+            return
+        if emp["renovacoes"] >= 2:
+            messagebox.showerror("Erro", "Limite de 2 renovações atingido.")
+            return
+        if not messagebox.askyesno("Confirmar", "Confirmar renovação por mais 7 dias?"):
+            return
+
+        data_prev = datetime.strptime(emp["data_prevista"], "%Y-%m-%d").date()
+        nova_data = data_prev + timedelta(days=PRAZO_DIAS)
+        emp["data_prevista"] = nova_data.isoformat()
+        emp["renovacoes"] = emp["renovacoes"] + 1
+        emp["situacao"] = "dentro do prazo"
+
+        registrar_historico("Renovação do empréstimo: " + emp["id"])
+        messagebox.showinfo("OK", "Renovado!\nNova data prevista: " + nova_data.strftime("%d/%m/%Y"))
+        e_id.delete(0, END)
+
+    Button(frame_conteudo, text="Renovar", command=renovar, bg="#4CAF50", fg="white").grid(row=2, column=1, pady=10, sticky=E, padx=10)
