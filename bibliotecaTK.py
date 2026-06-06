@@ -761,3 +761,329 @@ def tela_remover_usuario():
 
     Button(frame_conteudo, text="Remover", command=remover, bg="#f44336", fg="white").grid(row=2, column=1, pady=10, sticky=E, padx=10)
 
+def montar_relatorio(incluir_hist=True):
+    atualizar_situacoes()
+
+    total_livros = len(livros)
+    total_usuarios = len(usuarios)
+    total_emps = len(emprestimos)
+    total_ativos = 0
+    for e in emprestimos:
+        if e["status"] == "ativo":
+            total_ativos = total_ativos + 1
+
+    lista_multas = []
+    for e in emprestimos:
+        if e["multa"] > 0:
+            lista_multas.append(e["multa"])
+
+    soma_multas = sum(lista_multas)
+    if len(lista_multas) > 0:
+        media_multas = statistics.mean(lista_multas)
+    else:
+        media_multas = 0.0
+
+    linhas = []
+    linhas.append("-" * 60)
+    linhas.append("RELATÓRIO GERAL - Biblioteca RA")
+    linhas.append("Gerado em: " + datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+    linhas.append("-" * 60)
+    linhas.append("Livros: " + str(total_livros) + "  |  Usuários: " + str(total_usuarios))
+    linhas.append("Empréstimos: " + str(total_emps) + "  |  Ativos: " + str(total_ativos))
+    linhas.append("Total de multas: " + formatar_moeda(soma_multas) + "  |  Média: " + formatar_moeda(media_multas))
+    linhas.append("")
+
+    linhas.append("LIVROS:")
+    if len(livros) == 0:
+        linhas.append("  Nenhum livro.")
+    for l in livros:
+        linhas.append("  " + l["id"] + "  " + l["titulo"] + " - " + l["autor"] + "  disp:" + str(l["quantidade_disponivel"]) + "/" + str(l["quantidade_total"]))
+
+    linhas.append("\nUSUÁRIOS:")
+    if len(usuarios) == 0:
+        linhas.append("  Nenhum usuário.")
+    for u in usuarios:
+        linhas.append("  " + u["id"] + "  " + u["nome"] + "  multa:" + formatar_moeda(u["multa_total"]) + "  ativo:" + str(u["ativo"]))
+
+    linhas.append("\nEMPRÉSTIMOS:")
+    if len(emprestimos) == 0:
+        linhas.append("  Nenhum empréstimo.")
+    for e in emprestimos:
+        linhas.append("  " + e["id"] + "  " + e["nome_usuario"] + " -> " + e["titulo_livro"] + "  " + e["status"] + "  " + e["situacao"] + "  multa:" + formatar_moeda(e["multa"]))
+
+    linhas.append("\nPAGAMENTOS:")
+    if len(pagamentos) == 0:
+        linhas.append("  Nenhum pagamento.")
+    for p in pagamentos:
+        linhas.append("  " + p["data_hora"] + "  " + p["nome_usuario"] + "  " + formatar_moeda(p["valor"]) + "  " + p["forma_pagamento"])
+
+    linhas.append("\nHISTÓRICO:")
+    if incluir_hist == False:
+        linhas.append("  (ocultado)")
+    elif len(historico) == 0:
+        linhas.append("  Nenhuma ação.")
+    else:
+        for h in historico[-30:]:
+            linhas.append("  " + h["data_hora"] + "  " + h["acao"])
+
+    linhas.append("\nFim do relatório.")
+    return "\n".join(linhas)
+
+
+def tela_relatorio():
+    limpar()
+    Label(frame_conteudo, text="Relatório Geral", font=("Arial", 13, "bold"), bg="white").pack(pady=10)
+
+    texto = Text(frame_conteudo, width=80, height=22, font=("Courier", 9))
+    scroll = Scrollbar(frame_conteudo, command=texto.yview)
+    texto.configure(yscrollcommand=scroll.set)
+    scroll.pack(side=RIGHT, fill=Y)
+    texto.pack(padx=10, fill=BOTH, expand=True)
+    texto.insert(END, montar_relatorio())
+    texto.config(state=DISABLED)
+
+
+def tela_salvar_relatorio():
+    limpar()
+    Label(frame_conteudo, text="Salvar Relatório em .txt", font=("Arial", 13, "bold"), bg="white").grid(row=0, column=0, columnspan=2, pady=10)
+
+    Label(frame_conteudo, text="Nome do arquivo (vazio = automático)", bg="white").grid(row=1, column=0, sticky=W, padx=10)
+    e_nome = Entry(frame_conteudo, width=35)
+    e_nome.grid(row=1, column=1, padx=10, pady=3)
+
+    var_hist = BooleanVar(value=True)
+    Checkbutton(frame_conteudo, text="Incluir histórico", variable=var_hist, bg="white").grid(row=2, column=1, sticky=W, padx=10)
+
+    def salvar():
+        if not messagebox.askyesno("Confirmar", "Confirmar geração do relatório?"):
+            return
+
+        Path(PASTA_RELATORIOS).mkdir(exist_ok=True)
+        nome = e_nome.get().strip()
+        if nome == "":
+            nome = "relatorio_" + datetime.now().strftime("%Y%m%d_%H%M%S") + ".txt"
+        if not nome.endswith(".txt"):
+            nome = nome + ".txt"
+
+        caminho = Path(PASTA_RELATORIOS) / nome
+        conteudo = montar_relatorio(incluir_hist=var_hist.get())
+
+        arquivo = open(caminho, "w", encoding="utf-8")
+        arquivo.write(conteudo)
+        arquivo.close()
+
+        registrar_historico("Relatório salvo: " + str(caminho))
+        messagebox.showinfo("OK", "Relatório salvo em:\n" + str(caminho))
+
+    Button(frame_conteudo, text="Salvar", command=salvar, bg="#4CAF50", fg="white").grid(row=3, column=1, pady=10, sticky=E, padx=10)
+
+
+def tela_salvar_json():
+    limpar()
+    Label(frame_conteudo, text="Salvar Dados em JSON", font=("Arial", 13, "bold"), bg="white").grid(row=0, column=0, columnspan=2, pady=10)
+
+    Label(frame_conteudo, text="Nome do arquivo (vazio = padrão)", bg="white").grid(row=1, column=0, sticky=W, padx=10)
+    e_nome = Entry(frame_conteudo, width=35)
+    e_nome.grid(row=1, column=1, padx=10, pady=3)
+
+    def salvar():
+        nome = e_nome.get().strip()
+        if nome == "":
+            nome = ARQUIVO_JSON
+        if not nome.endswith(".json"):
+            nome = nome + ".json"
+
+        dados = {
+            "livros": livros,
+            "usuarios": usuarios,
+            "emprestimos": emprestimos,
+            "historico": historico,
+            "pagamentos": pagamentos
+        }
+
+        arquivo = open(nome, "w", encoding="utf-8")
+        json.dump(dados, arquivo, ensure_ascii=False, indent=4)
+        arquivo.close()
+
+        registrar_historico("Dados salvos: " + nome)
+        messagebox.showinfo("OK", "Dados salvos em:\n" + nome)
+
+    Button(frame_conteudo, text="Salvar JSON", command=salvar, bg="#4CAF50", fg="white").grid(row=2, column=1, pady=10, sticky=E, padx=10)
+
+
+def tela_carregar_json():
+    limpar()
+    Label(frame_conteudo, text="Carregar Dados de JSON", font=("Arial", 13, "bold"), bg="white").grid(row=0, column=0, columnspan=2, pady=10)
+
+    Label(frame_conteudo, text="Nome do arquivo (vazio = padrão)", bg="white").grid(row=1, column=0, sticky=W, padx=10)
+    e_nome = Entry(frame_conteudo, width=35)
+    e_nome.grid(row=1, column=1, padx=10, pady=3)
+
+    def procurar():
+        arq = filedialog.askopenfilename(filetypes=[("JSON", "*.json")])
+        if arq:
+            e_nome.delete(0, END)
+            e_nome.insert(0, arq)
+
+    Button(frame_conteudo, text="Procurar...", command=procurar).grid(row=2, column=1, sticky=W, padx=10)
+
+    def carregar():
+        nome = e_nome.get().strip()
+        if nome == "":
+            nome = ARQUIVO_JSON
+
+        if not Path(nome).exists():
+            messagebox.showerror("Erro", "Arquivo não encontrado:\n" + nome)
+            return
+
+        arquivo = open(nome, "r", encoding="utf-8")
+        dados = json.load(arquivo)
+        arquivo.close()
+
+        livros.clear()
+        usuarios.clear()
+        emprestimos.clear()
+        historico.clear()
+        pagamentos.clear()
+
+        livros.extend(dados.get("livros", []))
+        usuarios.extend(dados.get("usuarios", []))
+        emprestimos.extend(dados.get("emprestimos", []))
+        historico.extend(dados.get("historico", []))
+        pagamentos.extend(dados.get("pagamentos", []))
+
+        registrar_historico("Dados carregados: " + nome)
+        messagebox.showinfo("OK", "Dados carregados com sucesso!")
+
+    Button(frame_conteudo, text="Carregar", command=carregar, bg="#4CAF50", fg="white").grid(row=3, column=1, pady=10, sticky=E, padx=10)
+
+
+def tela_estatisticas():
+    limpar()
+    Label(frame_conteudo, text="Estatísticas", font=("Arial", 13, "bold"), bg="white").pack(pady=10)
+
+    total_ativos = 0
+    for e in emprestimos:
+        if e["status"] == "ativo":
+            total_ativos = total_ativos + 1
+
+    lista_multas = []
+    for e in emprestimos:
+        if e["multa"] > 0:
+            lista_multas.append(e["multa"])
+
+    soma_multas = sum(lista_multas)
+    if len(lista_multas) > 0:
+        media_multas = statistics.mean(lista_multas)
+    else:
+        media_multas = 0.0
+
+    
+    f1 = Frame(frame_conteudo, bg="white")
+    f1.pack(fill=X, padx=30, pady=4)
+    Label(f1, text="Total de livros:", font=("Arial", 10), bg="white", width=28, anchor=W).pack(side=LEFT)
+    Label(f1, text=str(len(livros)), font=("Arial", 10, "bold"), bg="white").pack(side=LEFT)
+
+    f2 = Frame(frame_conteudo, bg="white")
+    f2.pack(fill=X, padx=30, pady=4)
+    Label(f2, text="Total de usuários:", font=("Arial", 10), bg="white", width=28, anchor=W).pack(side=LEFT)
+    Label(f2, text=str(len(usuarios)), font=("Arial", 10, "bold"), bg="white").pack(side=LEFT)
+
+    f3 = Frame(frame_conteudo, bg="white")
+    f3.pack(fill=X, padx=30, pady=4)
+    Label(f3, text="Total de empréstimos:", font=("Arial", 10), bg="white", width=28, anchor=W).pack(side=LEFT)
+    Label(f3, text=str(len(emprestimos)), font=("Arial", 10, "bold"), bg="white").pack(side=LEFT)
+
+    f4 = Frame(frame_conteudo, bg="white")
+    f4.pack(fill=X, padx=30, pady=4)
+    Label(f4, text="Empréstimos ativos:", font=("Arial", 10), bg="white", width=28, anchor=W).pack(side=LEFT)
+    Label(f4, text=str(total_ativos), font=("Arial", 10, "bold"), bg="white").pack(side=LEFT)
+
+    f5 = Frame(frame_conteudo, bg="white")
+    f5.pack(fill=X, padx=30, pady=4)
+    Label(f5, text="Total de multas geradas:", font=("Arial", 10), bg="white", width=28, anchor=W).pack(side=LEFT)
+    Label(f5, text=formatar_moeda(soma_multas), font=("Arial", 10, "bold"), bg="white").pack(side=LEFT)
+
+    f6 = Frame(frame_conteudo, bg="white")
+    f6.pack(fill=X, padx=30, pady=4)
+    Label(f6, text="Média das multas:", font=("Arial", 10), bg="white", width=28, anchor=W).pack(side=LEFT)
+    Label(f6, text=formatar_moeda(media_multas), font=("Arial", 10, "bold"), bg="white").pack(side=LEFT)
+
+
+def tela_dados_exemplo():
+    limpar()
+    Label(frame_conteudo, text="Criar Dados de Exemplo", font=("Arial", 13, "bold"), bg="white").pack(pady=10)
+    Label(frame_conteudo, text="Cria 2 usuários e 2 livros de exemplo para testar o sistema.", bg="white").pack(pady=5)
+
+    def criar():
+        if not messagebox.askyesno("Confirmar", "Criar dados de exemplo?"):
+            return
+
+        u1 = {
+            "id": gerar_id("U"),
+            "nome": "Ana Souza",
+            "cpf": "111.111.111-11",
+            "email": "ana@email.com",
+            "telefone": "(41) 99999-1111",
+            "endereco": "Rua das Flores, 100",
+            "nascimento": "10/05/2005",
+            "tipo": "aluno",
+            "observacoes": "",
+            "multa_total": 0.0,
+            "ativo": True
+        }
+        u2 = {
+            "id": gerar_id("U"),
+            "nome": "Bruno Lima",
+            "cpf": "222.222.222-22",
+            "email": "bruno@email.com",
+            "telefone": "(41) 99999-2222",
+            "endereco": "Av. Central, 200",
+            "nascimento": "22/08/2004",
+            "tipo": "aluno",
+            "observacoes": "",
+            "multa_total": 0.0,
+            "ativo": True
+        }
+        l1 = {
+            "id": gerar_id("L"),
+            "titulo": "Python para Iniciantes",
+            "autor": "Carlos Silva",
+            "ano": 2022,
+            "isbn": "978-0000-1",
+            "categoria": "Programação",
+            "editora": "Editora Tech",
+            "quantidade_total": 3,
+            "quantidade_disponivel": 3,
+            "prateleira": "A1",
+            "palavras_chave": "python",
+            "observacoes": "",
+            "ativo": True
+        }
+        l2 = {
+            "id": gerar_id("L"),
+            "titulo": "Algoritmos e Estruturas",
+            "autor": "Maria Costa",
+            "ano": 2021,
+            "isbn": "978-0000-2",
+            "categoria": "Computação",
+            "editora": "Ed. Academica",
+            "quantidade_total": 2,
+            "quantidade_disponivel": 2,
+            "prateleira": "B2",
+            "palavras_chave": "algoritmos",
+            "observacoes": "",
+            "ativo": True
+        }
+
+        usuarios.append(u1)
+        usuarios.append(u2)
+        livros.append(l1)
+        livros.append(l2)
+
+        registrar_historico("Dados de exemplo criados")
+        messagebox.showinfo("OK", "Dados de exemplo criados!\nUse 'Listar Usuários' e 'Listar Livros' para ver.")
+
+    Button(frame_conteudo, text="Criar Dados de Exemplo", command=criar, bg="#4CAF50", fg="white").pack(pady=10)
+
+
