@@ -602,3 +602,109 @@ def tela_renovar():
         e_id.delete(0, END)
 
     Button(frame_conteudo, text="Renovar", command=renovar, bg="#4CAF50", fg="white").grid(row=2, column=1, pady=10, sticky=E, padx=10)
+def tela_consultar_multas():
+    limpar()
+    Label(frame_conteudo, text="Consultar Multas do Usuário", font=("Arial", 13, "bold"), bg="white").pack(pady=10)
+
+    frame_top = Frame(frame_conteudo, bg="white")
+    frame_top.pack()
+    Label(frame_top, text="ID do Usuário:", bg="white").pack(side=LEFT)
+    e_id = Entry(frame_top, width=30)
+    e_id.pack(side=LEFT, padx=5)
+
+    texto = Text(frame_conteudo, width=80, height=18, font=("Courier", 9))
+    scroll = Scrollbar(frame_conteudo, command=texto.yview)
+    texto.configure(yscrollcommand=scroll.set)
+    scroll.pack(side=RIGHT, fill=Y)
+    texto.pack(padx=10, pady=5, fill=BOTH, expand=True)
+
+    def consultar():
+        u = encontrar_usuario(e_id.get().strip())
+        texto.config(state=NORMAL)
+        texto.delete("1.0", END)
+
+        if u == None:
+            texto.insert(END, "Usuário não encontrado.")
+        else:
+            texto.insert(END, "Usuário: " + u["nome"] + "\n")
+            texto.insert(END, "Multa total em aberto: " + formatar_moeda(u["multa_total"]) + "\n\n")
+            texto.insert(END, "Empréstimos com multa:\n")
+            achou = False
+            for e in emprestimos:
+                if e["id_usuario"] == u["id"] and e["multa"] > 0:
+                    achou = True
+                    linha = "  " + e["titulo_livro"] + "  |  Atraso: " + str(e["dias_atraso"]) + " dia(s)  |  " + formatar_moeda(e["multa"]) + "\n"
+                    texto.insert(END, linha)
+            if achou == False:
+                texto.insert(END, "  Nenhum empréstimo com multa.\n")
+
+        texto.config(state=DISABLED)
+
+    Button(frame_top, text="Consultar", command=consultar, bg="#2196F3", fg="white").pack(side=LEFT, padx=5)
+    e_id.bind("<Return>", lambda event: consultar())
+
+
+def tela_pagar_multa():
+    limpar()
+    Label(frame_conteudo, text="Pagar Multa", font=("Arial", 13, "bold"), bg="white").grid(row=0, column=0, columnspan=2, pady=10)
+
+    Label(frame_conteudo, text="ID do Usuário *", bg="white").grid(row=1, column=0, sticky=W, padx=10)
+    e_id = Entry(frame_conteudo, width=35)
+    e_id.grid(row=1, column=1, padx=10, pady=3)
+
+    Label(frame_conteudo, text="Valor pago (R$) *", bg="white").grid(row=2, column=0, sticky=W, padx=10)
+    e_valor = Entry(frame_conteudo, width=35)
+    e_valor.grid(row=2, column=1, padx=10, pady=3)
+
+    Label(frame_conteudo, text="Forma de pagamento (dinheiro/pix/cartão)", bg="white").grid(row=3, column=0, sticky=W, padx=10)
+    e_forma = Entry(frame_conteudo, width=35)
+    e_forma.grid(row=3, column=1, padx=10, pady=3)
+
+    Label(frame_conteudo, text="Observação", bg="white").grid(row=4, column=0, sticky=W, padx=10)
+    e_obs = Entry(frame_conteudo, width=35)
+    e_obs.grid(row=4, column=1, padx=10, pady=3)
+
+    def pagar():
+        u = encontrar_usuario(e_id.get().strip())
+        if u == None:
+            messagebox.showerror("Erro", "Usuário não encontrado.")
+            return
+        try:
+            valor = float(e_valor.get().replace(",", ".").strip())
+        except:
+            messagebox.showerror("Erro", "Valor inválido.")
+            return
+        if valor <= 0:
+            messagebox.showerror("Erro", "O valor deve ser maior que zero.")
+            return
+        if u["multa_total"] <= 0:
+            messagebox.showerror("Erro", "Esse usuário não tem multa em aberto.")
+            return
+
+        
+        if valor > u["multa_total"]:
+            abatido = u["multa_total"]
+        else:
+            abatido = valor
+        u["multa_total"] = u["multa_total"] - abatido
+
+        novo_pag = {
+            "id": gerar_id("P"),
+            "id_usuario": u["id"],
+            "nome_usuario": u["nome"],
+            "valor": abatido,
+            "forma_pagamento": e_forma.get().strip(),
+            "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            "observacao": e_obs.get().strip()
+        }
+        pagamentos.append(novo_pag)
+        registrar_historico("Pagamento: " + u["nome"] + " - " + formatar_moeda(abatido))
+        messagebox.showinfo("OK", "Pagamento registrado: " + formatar_moeda(abatido) + "\nSaldo restante: " + formatar_moeda(u["multa_total"]))
+
+        e_id.delete(0, END)
+        e_valor.delete(0, END)
+        e_forma.delete(0, END)
+        e_obs.delete(0, END)
+
+    Button(frame_conteudo, text="Registrar Pagamento", command=pagar, bg="#4CAF50", fg="white").grid(row=5, column=1, pady=10, sticky=E, padx=10)
+
