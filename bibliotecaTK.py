@@ -708,3 +708,56 @@ def tela_pagar_multa():
 
     Button(frame_conteudo, text="Registrar Pagamento", command=pagar, bg="#4CAF50", fg="white").grid(row=5, column=1, pady=10, sticky=E, padx=10)
 
+def tela_remover_livro():
+    limpar()
+    Label(frame_conteudo, text="Remover Livro", font=("Arial", 13, "bold"), bg="white").grid(row=0, column=0, columnspan=2, pady=10)
+
+    Label(frame_conteudo, text="ID do Livro *", bg="white").grid(row=1, column=0, sticky=W, padx=10)
+    e_id = Entry(frame_conteudo, width=35)
+    e_id.grid(row=1, column=1, padx=10, pady=3)
+
+    def remover():
+        livro = encontrar_livro(e_id.get().strip())
+        if livro == None:
+            messagebox.showerror("Erro", "Livro não encontrado.")
+            return
+        
+        for emp in emprestimos:
+            if emp["id_livro"] == livro["id"] and emp["status"] == "ativo":
+                messagebox.showerror("Erro", "Livro tem empréstimo ativo, não pode ser removido.")
+                return
+        if not messagebox.askyesno("Confirmar", "Remover o livro:\n" + livro["titulo"] + "?"):
+            return
+        livro["ativo"] = False
+        registrar_historico("Livro removido: " + livro["titulo"])
+        messagebox.showinfo("OK", "Livro removido do acervo ativo.")
+        e_id.delete(0, END)
+
+    Button(frame_conteudo, text="Remover", command=remover, bg="#f44336", fg="white").grid(row=2, column=1, pady=10, sticky=E, padx=10)
+
+
+def tela_remover_usuario():
+    limpar()
+    Label(frame_conteudo, text="Remover Usuário", font=("Arial", 13, "bold"), bg="white").grid(row=0, column=0, columnspan=2, pady=10)
+
+    Label(frame_conteudo, text="ID do Usuário *", bg="white").grid(row=1, column=0, sticky=W, padx=10)
+    e_id = Entry(frame_conteudo, width=35)
+    e_id.grid(row=1, column=1, padx=10, pady=3)
+
+    def remover():
+        u = encontrar_usuario(e_id.get().strip())
+        if u == None:
+            messagebox.showerror("Erro", "Usuário não encontrado.")
+            return
+        if contar_ativos(u["id"]) > 0:
+            messagebox.showerror("Erro", "Usuário tem empréstimos ativos, não pode ser removido.")
+            return
+        if not messagebox.askyesno("Confirmar", "Remover o usuário:\n" + u["nome"] + "?"):
+            return
+        u["ativo"] = False
+        registrar_historico("Usuário removido: " + u["nome"])
+        messagebox.showinfo("OK", "Usuário removido do cadastro ativo.")
+        e_id.delete(0, END)
+
+    Button(frame_conteudo, text="Remover", command=remover, bg="#f44336", fg="white").grid(row=2, column=1, pady=10, sticky=E, padx=10)
+
